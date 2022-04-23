@@ -10,7 +10,7 @@ import { Swagger } from './swagger';
 // [ ] handle response status
 // [X] handle multiple types (oneOf)
 // [X] handle arrays
-// [ ] Type in a type without a name e.g. type T = { a: { b: string } }
+// [X] Type in a type without a name e.g. type T = { a: { b: string } }
 
 // Bugs:
 // [ ] app.get can't find symbol
@@ -62,16 +62,12 @@ const isSimpleType = (type: string) => {
   return ['string', 'number', 'boolean', 'integer'].includes(type);
 }
 
-const isArray = (type: string) => {
-  return type.startsWith('Array<') || type.endsWith('[]');
-}
-
-type ArrayType = ts.Type & {
-  resolvedTypeArguments: ts.Type[];
-}
+type ArrayType = ts.Type & { resolvedTypeArguments: ts.Type[]; }
+type PropertyType = ts.Type & { types: ts.Type[] };
 
 const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
   const typeName = tc.typeToString(type);
+  const isDynamicType = typeName.startsWith("{") && typeName.endsWith("}");
 
   if (isSimpleType(typeName)) {
     return {
@@ -89,7 +85,6 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
   };
 
   if (spec.components!.schemas![typeName]) {
-    // return spec.components!.schemas![typeName];
     return { $ref: `#/components/schemas/${typeName}` };
   }
 
@@ -100,15 +95,14 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
   };
 
   for (const property of tc.getPropertiesOfType(type)) {
-    const propertyType = tc.getTypeOfSymbolAtLocation(property, node);
+    const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as PropertyType;
     const typeString = tc.typeToString(propertyType);
     if (!(property.getFlags() & ts.SymbolFlags.Optional) && !typeString.includes('undefined')) {
       definition.required!.push(property.name);
     }
 
     if (typeString.includes('|')) {
-      // @ts-ignore
-      const types = propertyType.types as ts.Type[];
+      const types = propertyType.types;
       definition.properties![property.name] = {
         oneOf: types.map(x => {
           const propertyTypeName = tc.typeToString(x);
@@ -127,15 +121,16 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
 
   definition.required = definition.required?.length ? definition.required : undefined;
 
-  if (save) {
+  if (save && !isDynamicType) {
     spec.components!.schemas![typeName] = definition;
   }
 
-  return { $ref: `#/components/schemas/${typeName}` };
+  return isDynamicType
+    ? definition
+    : { $ref: `#/components/schemas/${typeName}` };
 }
 
 const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChecker) => {
-  // console.log(node.getText(file), node.kind);
   if (node.kind === ts.SyntaxKind.CallExpression) {
     const prop = node as ts.CallExpression;
     const functionCallNode = prop.getChildAt(0, file);
