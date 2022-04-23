@@ -9,7 +9,8 @@ import { Swagger } from './swagger';
 // [ ] handle path params
 // [ ] handle response status
 // [X] handle multiple types (oneOf)
-// [ ] handle arrays
+// [X] handle arrays
+// [ ] Type in a type without a name e.g. type T = { a: { b: string } }
 
 // Bugs:
 // [ ] app.get can't find symbol
@@ -61,7 +62,15 @@ const isSimpleType = (type: string) => {
   return ['string', 'number', 'boolean', 'integer'].includes(type);
 }
 
-const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, saveToDefs?: boolean): Swagger.Schema => {
+const isArray = (type: string) => {
+  return type.startsWith('Array<') || type.endsWith('[]');
+}
+
+type ArrayType = ts.Type & {
+  resolvedTypeArguments: ts.Type[];
+}
+
+const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
   const typeName = tc.typeToString(type);
 
   if (isSimpleType(typeName)) {
@@ -70,11 +79,21 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
     };
   }
 
+  if (type.symbol?.name === 'Array') {
+    const arrayType = type as ArrayType;
+    console.log(typeName, tc.typeToString(arrayType.resolvedTypeArguments[0]));
+    return {
+      type: 'array',
+      items: createDefinitionFromType(arrayType.resolvedTypeArguments[0], node, tc, save),
+    };
+  };
+
   if (spec.components!.schemas![typeName]) {
-    return spec.components!.schemas![typeName];
+    // return spec.components!.schemas![typeName];
+    return { $ref: `#/components/schemas/${typeName}` };
   }
 
-  const definition: Swagger.Schema = {
+  let definition: Swagger.Schema = {
     type: 'object',
     properties: {},
     required: [],
@@ -97,37 +116,22 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
             return { type: propertyTypeName };
           }
 
-          createDefinitionFromType(x, node, tc, true);
-          return { $ref: `#/components/schemas/${propertyTypeName}` };
+          return createDefinitionFromType(x, node, tc, save);
         }),
       };
       continue;
     }
 
-    if (isSimpleType(typeString)) {
-      definition.properties![property.name] = {
-        type: typeString,
-      };
-      continue;
-    }
-
-    definition.properties![property.name] = {
-      $ref: `#/components/schemas/${typeString}`,
-    };
-
-    createDefinitionFromType(propertyType, node, tc, true);
+    definition.properties![property.name] = createDefinitionFromType(propertyType, node, tc, save);
   }
 
-  const cleanDefinition = {
-    ...definition,
-    required: definition.required?.length ? definition.required : undefined,
-  };
+  definition.required = definition.required?.length ? definition.required : undefined;
 
-  if (saveToDefs) {
-    spec.components!.schemas![typeName] = cleanDefinition;
+  if (save) {
+    spec.components!.schemas![typeName] = definition;
   }
 
-  return cleanDefinition;
+  return { $ref: `#/components/schemas/${typeName}` };
 }
 
 const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChecker) => {

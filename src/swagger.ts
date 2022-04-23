@@ -119,9 +119,8 @@ export namespace Swagger {
   }
 
   export interface Content {
-    [contentType: string]: {
-      schema?: Schema;
-    }
+    'application/json'?: { schema?: Schema };
+    '*/*'?: { schema?: Schema };
   }
 
   export interface BaseSchema {

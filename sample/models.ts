@@ -10,7 +10,7 @@ export type Color = {
 export type Cat = Animal & {
   color: string | number | ColorRGB | Color;
   dog?: Dog;
-  // siblings?: Animal[];
+  siblings?: Animal[];
 }
 
 export type Dog = Animal & {
