@@ -30,8 +30,6 @@ export namespace Swagger {
       externalDocs?: ExternalDocs;
   }
 
-  export interface Example { }
-
   export interface Header extends BaseSchema {
       type: string;
   }
@@ -71,13 +69,6 @@ export namespace Swagger {
   }
 
   export type CollectionFormat = 'csv' | 'ssv' | 'tsv' | 'pipes' | 'multi';
-
-  // export type Parameter =
-  //     BodyParameter |
-  //     FormDataParameter |
-  //     QueryParameter |
-  //     PathParameter |
-  //     HeaderParameter;
 
   export interface Parameter {
     name: string;
@@ -123,7 +114,7 @@ export namespace Swagger {
       description: string;
       content: Content;
       headers?: { [headerName: string]: Header };
-      examples?: { [exampleName: string]: Example };
+      examples?: { [exampleName: string]: unknown };
   }
 
   export interface Content {
@@ -135,7 +126,7 @@ export namespace Swagger {
       format?: string;
       title?: string;
       description?: string;
-      default?: string | boolean | number | Object;
+      default?: string | boolean | number | object;
       multipleOf?: number;
       maximum?: number;
       exclusiveMaximum?: number;
@@ -164,7 +155,7 @@ export namespace Swagger {
       readOnly?: boolean;
       xml?: XML;
       externalDocs?: ExternalDocs;
-      example?: { [exampleName: string]: Example };
+      example?: { [exampleName: string]: unknown };
       required?: string[];
   }
 
@@ -181,7 +172,7 @@ export namespace Swagger {
       description?: string;
   }
 
-  export interface BasicAuthenticationSecurity extends BaseSecurity { }
+  export type BasicAuthenticationSecurity = BaseSecurity
 
   export interface ApiKeySecurity extends BaseSecurity {
       name: string;

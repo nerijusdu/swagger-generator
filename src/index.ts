@@ -1,22 +1,9 @@
-import * as ts from 'typescript';
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import ts from 'typescript';
 import * as fs from 'fs';
 import { Swagger } from './swagger';
-
-// TODO:
-// [X] handle request body type
-// [X] handle response type
-// [X] move types to definitions
-// [X] handle query params
-// [X] handle path params
-// [X] handle response status
-// [X] handle multiple types (oneOf)
-// [X] handle arrays
-// [X] Type in a type without a name e.g. type T = { a: { b: string } }
-// [X] handle nested routes e.g. app.use('/api', router);
-// [X] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
-
-// Bugs:
-// [X] app.get can't find symbol
+import { ArrayType, PropertyType, RouteOperation, VariableDeclaration } from './models/helperTypes';
+import { isSimpleType, sanitizeRouteArgument } from './util';
 
 const ROUTE_PARAMS_INDEX = 1;
 const RESPONSE_INDEX = 2;
@@ -24,9 +11,18 @@ const REQUEST_INDEX = 3;
 const QUERY_PARAMS_INDEX = 4;
 const PARAMS_TO_SAVE = [RESPONSE_INDEX, REQUEST_INDEX];
 
+const routesOperations: RouteOperation[] = [];
+const routePrefixes = new Map<number, string[]>();
+const spec: Swagger.Spec = {
+  info: { title: 'api', version: '1.0.0' },
+  openapi: '3.0.0',
+  paths: {},
+  components: { schemas: {} },
+};
+
 function main(entrypoint: string) {
   const program = ts.createProgram([entrypoint], {});
-  const tc = program.getTypeChecker()
+  const tc = program.getTypeChecker();
   program.getSourceFiles().forEach(file => {
     if (file.fileName.includes('node_modules')) {
       return;
@@ -39,167 +35,30 @@ function main(entrypoint: string) {
     });
   });
 
-  for (const operation of routesOperations) {
-    const prefixes = routePrefixes.get(operation.routerId) || [];
-    for (const prefix of prefixes) {
-      const path = `${prefix}${operation.route}`;
-      spec.paths![path] = {
-        ...(spec.paths![path] || {}),
-        [operation.method]: {
-          tags: [prefix],
-          ...operation.operation,
-        },
-      };
-    }
-  }
+  addPathsToSpec();
 
   // console.log(JSON.stringify(spec, null, 2));
-  fs.writeFileSync(`./sample/openapi.json`, JSON.stringify(spec, null, 2));
+  fs.writeFileSync('./sample/openapi.json', JSON.stringify(spec, null, 2));
   console.log('Done');
 }
 
-const spec: Swagger.Spec = {
-  info: { title: 'api', version: '1.0.0' },
-  openapi: '3.0.0',
-  paths: {},
-  components: { schemas: {} },
-}
-
-const isSimpleType = (type: string) => ['string', 'number', 'boolean', 'integer'].includes(type)
-
-const sanitizeRouteArgument = (route: ts.Expression | undefined, file: ts.SourceFile) => route
-  ?.getText(file)
-  ?.replace(/['"]/g, '')
-  ?.replace(/:([a-zA-Z]+)/g, '{$1}');
-
-type ArrayType = ts.Type & { resolvedTypeArguments: ts.Type[]; }
-type PropertyType = ts.Type & { types: ts.Type[] };
-type VariableDeclaration = ts.Declaration & { symbol: ts.Symbol & { id: number }; };
-
-const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
-  const typeName = tc.typeToString(type);
-  const isDynamicType = typeName.startsWith("{") && typeName.endsWith("}");
-
-  if (isSimpleType(typeName)) {
-    return { type: typeName };
-  }
-
-  if (type.symbol?.name === 'Array') {
-    const arrayType = type as ArrayType;
-    return {
-      type: 'array',
-      items: createSchemaFromType(arrayType.resolvedTypeArguments[0], node, tc, save),
-    };
-  };
-
-  if (spec.components!.schemas![typeName]) {
-    return { $ref: `#/components/schemas/${typeName}` };
-  }
-
-  let definition: Swagger.Schema = {
-    type: 'object',
-    properties: {},
-    required: [],
-  };
-
-  for (const property of tc.getPropertiesOfType(type)) {
-    const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as PropertyType;
-    const typeString = tc.typeToString(propertyType);
-    if (!(property.getFlags() & ts.SymbolFlags.Optional) && !typeString.includes('undefined')) {
-      definition.required!.push(property.name);
-    }
-
-    if (typeString.includes('|')) {
-      const types = propertyType.types;
-      definition.properties![property.name] = {
-        oneOf: types.map(x => {
-          const propertyTypeName = tc.typeToString(x);
-          if (isSimpleType(propertyTypeName)) {
-            return { type: propertyTypeName };
-          }
-
-          return createSchemaFromType(x, node, tc, save);
-        }),
-      };
-      continue;
-    }
-
-    definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
-  }
-
-  definition.required = definition.required?.length ? definition.required : undefined;
-
-  if (save && !isDynamicType) {
-    spec.components!.schemas![typeName] = definition;
-  }
-
-  return isDynamicType || !save
-    ? definition
-    : { $ref: `#/components/schemas/${typeName}` };
-}
-
-const findStatusesForRoute = (node: ts.Node, tc: ts.TypeChecker, file: ts.SourceFile, statuses: number[] = []): number[] => {
-  const symbol = tc.getSymbolAtLocation(node);
-  if (symbol) {
-    const type = tc.getTypeOfSymbolAtLocation(symbol, node);
-    if (['status', 'sendStatus'].includes(type.symbol?.name)) {
-      // @ts-ignore
-      const status = node.parent?.arguments?.[0]?.getText(file);
-      return status ? [...statuses, Number(status)] : statuses;
-    }
+const iterateCallExpressions = (
+  node: ts.Node,
+  file: ts.SourceFile,
+  tc: ts.TypeChecker,
+  parents: ts.Node[] = []) => {
+  if (node.kind === ts.SyntaxKind.CallExpression) {
+    generateSpecForRoute(node as ts.CallExpression, file, tc, parents[0]);
   }
 
   if (node.getChildCount(file) === 0) {
-    return statuses;
+    return;
   }
 
-  return node
-    .getChildren(file)
-    .reduce((acc, child) => [...acc, ...findStatusesForRoute(child, tc, file)], [] as number[]);
+  node.getChildren(file).forEach(child => {
+    iterateCallExpressions(child, file, tc, [...parents, node]);
+  });
 };
-
-const createParametersFromSchema = (schema: Swagger.Schema, location: 'path' | 'query') : Swagger.Parameter[] => {
-  const properties = schema?.properties || {};
-  const params: Swagger.Parameter[] = [];
-
-  for (const propertyName in properties) {
-    const param: Swagger.Parameter = {
-      name: propertyName,
-      in: location,
-      schema: properties[propertyName],
-    };
-
-    if (schema?.required?.includes(propertyName)) {
-      param.required = true;
-    }
-
-    params.push(param)
-  }
-
-  return params;
-};
-
-type RouteOperation = {
-  route: string;
-  method: string;
-  operation: Swagger.Operation;
-  routerId: number;
-}
-
-const routesOperations: RouteOperation[] = [];
-const routePrefixes = new Map<number, string[]>();
-
-const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeChecker): number | undefined => {
-  const handlerIdentifier = node.arguments?.find(x => x.kind === ts.SyntaxKind.Identifier) as ts.Identifier;
-  const handlerIdentifierSymbol = tc.getSymbolAtLocation(handlerIdentifier)!;
-  // @ts-ignore
-  const moduleSpecifierSymbol = tc.getSymbolAtLocation(handlerIdentifierSymbol.declarations![0]?.parent?.moduleSpecifier)!;
-  // @ts-ignore
-  const routerNode = tc.getExportsOfModule(moduleSpecifierSymbol).find(x => x.name === 'default')?.declarations?.[0].expression;
-  // @ts-ignore
-  const routerId = tc.getSymbolAtLocation(routerNode)?.id as number;
-  return routerId;
-}
 
 const generateSpecForRoute = (
   node: ts.CallExpression,
@@ -218,17 +77,7 @@ const generateSpecForRoute = (
   const typeName = tc.typeToString(type);
   if (!typeName.includes('IRouterMatcher')) {
     if (node.getText(file).startsWith('app.use(\'/')) {
-      const isRequestHandler = typeName.startsWith('ApplicationRequestHandler');
-      if (!isRequestHandler) return;
-
-      const routePrefix = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
-      if (!routePrefix) return;
-
-      const routerId = getRouterIdFromRequestHandler(node, tc);
-      if (!routerId) return;
-
-      const existingPrefixes = routePrefixes.get(routerId) || [];
-      routePrefixes.set(routerId, [...existingPrefixes, routePrefix]);
+      setRoutePrefix(typeName, node, tc, file);
     }
     return;
   }
@@ -306,25 +155,152 @@ const generateSpecForRoute = (
     ];
   }
 
-  routesOperations.push({ route, method, operation, routerId })
-}
+  routesOperations.push({ route, method, operation, routerId });
+};
 
-const iterateCallExpressions = (
-  node: ts.Node,
-  file: ts.SourceFile,
-  tc: ts.TypeChecker,
-  parents: ts.Node[] = []) => {
-  if (node.kind === ts.SyntaxKind.CallExpression) {
-    generateSpecForRoute(node as ts.CallExpression, file, tc, parents[0]);
+const setRoutePrefix = (typeName: string, node: ts.CallExpression, tc: ts.TypeChecker, file: ts.SourceFile) => {
+  const isRequestHandler = typeName.startsWith('ApplicationRequestHandler');
+  if (!isRequestHandler) return;
+
+  const routePrefix = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
+  if (!routePrefix) return;
+
+  const routerId = getRouterIdFromRequestHandler(node, tc);
+  if (!routerId) return;
+
+  const existingPrefixes = routePrefixes.get(routerId) || [];
+  routePrefixes.set(routerId, [...existingPrefixes, routePrefix]);
+};
+
+const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeChecker): number | undefined => {
+  const handlerIdentifier = node.arguments?.find(x => x.kind === ts.SyntaxKind.Identifier) as ts.Identifier;
+  const handlerIdentifierSymbol = tc.getSymbolAtLocation(handlerIdentifier)!;
+  // @ts-ignore
+  const moduleSpecifierSymbol = tc.getSymbolAtLocation(handlerIdentifierSymbol.declarations![0]?.parent?.moduleSpecifier)!;
+  // @ts-ignore
+  const routerNode = tc.getExportsOfModule(moduleSpecifierSymbol).find(x => x.name === 'default')?.declarations?.[0].expression;
+  // @ts-ignore
+  const routerId = tc.getSymbolAtLocation(routerNode)?.id as number;
+  return routerId;
+};
+
+const addPathsToSpec = () => {
+  for (const operation of routesOperations) {
+    const prefixes = routePrefixes.get(operation.routerId) || [];
+    for (const prefix of prefixes) {
+      const path = `${prefix}${operation.route}`;
+      spec.paths![path] = {
+        ...(spec.paths![path] || {}),
+        [operation.method]: {
+          tags: [prefix],
+          ...operation.operation,
+        },
+      };
+    }
+  }
+};
+
+const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
+  const typeName = tc.typeToString(type);
+  const isDynamicType = typeName.startsWith('{') && typeName.endsWith('}');
+
+  if (isSimpleType(typeName)) {
+    return { type: typeName };
+  }
+
+  if (type.symbol?.name === 'Array') {
+    const arrayType = type as ArrayType;
+    return {
+      type: 'array',
+      items: createSchemaFromType(arrayType.resolvedTypeArguments[0], node, tc, save),
+    };
+  }
+
+  if (spec.components!.schemas![typeName]) {
+    return { $ref: `#/components/schemas/${typeName}` };
+  }
+
+  const definition: Swagger.Schema = {
+    type: 'object',
+    properties: {},
+    required: [],
+  };
+
+  for (const property of tc.getPropertiesOfType(type)) {
+    const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as PropertyType;
+    const typeString = tc.typeToString(propertyType);
+    if (!(property.getFlags() & ts.SymbolFlags.Optional) && !typeString.includes('undefined')) {
+      definition.required!.push(property.name);
+    }
+
+    if (typeString.includes('|')) {
+      const types = propertyType.types;
+      definition.properties![property.name] = {
+        oneOf: types.map(x => {
+          const propertyTypeName = tc.typeToString(x);
+          if (isSimpleType(propertyTypeName)) {
+            return { type: propertyTypeName };
+          }
+
+          return createSchemaFromType(x, node, tc, save);
+        }),
+      };
+      continue;
+    }
+
+    definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
+  }
+
+  definition.required = definition.required?.length ? definition.required : undefined;
+
+  if (save && !isDynamicType) {
+    spec.components!.schemas![typeName] = definition;
+  }
+
+  return isDynamicType || !save
+    ? definition
+    : { $ref: `#/components/schemas/${typeName}` };
+};
+
+const createParametersFromSchema = (schema: Swagger.Schema, location: 'path' | 'query') : Swagger.Parameter[] => {
+  const properties = schema?.properties || {};
+  const params: Swagger.Parameter[] = [];
+
+  for (const propertyName in properties) {
+    const param: Swagger.Parameter = {
+      name: propertyName,
+      in: location,
+      schema: properties[propertyName],
+    };
+
+    if (schema?.required?.includes(propertyName)) {
+      param.required = true;
+    }
+
+    params.push(param);
+  }
+
+  return params;
+};
+
+const findStatusesForRoute = (node: ts.Node, tc: ts.TypeChecker, file: ts.SourceFile, statuses: number[] = []): number[] => {
+  const symbol = tc.getSymbolAtLocation(node);
+  if (symbol) {
+    const type = tc.getTypeOfSymbolAtLocation(symbol, node);
+    if (['status', 'sendStatus'].includes(type.symbol?.name)) {
+      // @ts-ignore
+      const status = node.parent?.arguments?.[0]?.getText(file);
+      return status ? [...statuses, Number(status)] : statuses;
+    }
   }
 
   if (node.getChildCount(file) === 0) {
-    return;
+    return statuses;
   }
 
-  node.getChildren(file).forEach(child => {
-    iterateCallExpressions(child, file, tc, [...parents, node]);
-  });
+  return node
+    .getChildren(file)
+    .reduce((acc, child) => [...acc, ...findStatusesForRoute(child, tc, file)], [] as number[]);
 };
 
 main('./sample/app.ts');

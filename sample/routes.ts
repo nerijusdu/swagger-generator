@@ -37,7 +37,7 @@ routes.get('/cats', (req, res) => {
       color: 'Black'
     }
   ]);
-})
+});
 
 routes.post<any, any, Cat, Cat>('/cat', (req, res) => {
   const cat = req.body;
