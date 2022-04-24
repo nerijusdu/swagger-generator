@@ -12,10 +12,11 @@ import { Swagger } from './swagger';
 // [X] handle multiple types (oneOf)
 // [X] handle arrays
 // [X] Type in a type without a name e.g. type T = { a: { b: string } }
-// [ ] handle nested routes e.g. app.use('/api', router);
+// [X] handle nested routes e.g. app.use('/api', router);
+// [ ] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
 
 // Bugs:
-// [ ] app.get can't find symbol
+// [X] app.get can't find symbol
 
 const ROUTE_PARAMS_INDEX = 1;
 const RESPONSE_INDEX = 2;
@@ -38,6 +39,15 @@ function main(entrypoint: string) {
     });
   });
 
+  for (const operation of routesOperations) {
+    const prefix = routePrefixes.get(operation.routerId) || '';
+    const path = `${prefix}${operation.route}`;
+    spec.paths![path] = {
+      ...(spec.paths![path] || {}),
+      [operation.method]: operation.operation,
+    }
+  }
+
   // console.log(JSON.stringify(spec, null, 2));
   fs.writeFileSync(`./sample/openapi.json`, JSON.stringify(spec, null, 2));
   console.log('Done');
@@ -52,8 +62,14 @@ const spec: Swagger.Spec = {
 
 const isSimpleType = (type: string) => ['string', 'number', 'boolean', 'integer'].includes(type)
 
+const sanitizeRouteArgument = (route: ts.Expression | undefined, file: ts.SourceFile) => route
+  ?.getText(file)
+  ?.replace(/['"]/g, '')
+  ?.replace(/:([a-zA-Z]+)/g, '{$1}');
+
 type ArrayType = ts.Type & { resolvedTypeArguments: ts.Type[]; }
 type PropertyType = ts.Type & { types: ts.Type[] };
+type VariableDeclaration = ts.Declaration & { symbol: ts.Symbol & { id: number }; };
 
 const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
   const typeName = tc.typeToString(type);
@@ -158,6 +174,28 @@ const createParametersFromSchema = (schema: Swagger.Schema, location: 'path' | '
   return params;
 };
 
+type RouteOperation = {
+  route: string;
+  method: string;
+  operation: Swagger.Operation;
+  routerId: number;
+}
+
+const routesOperations: RouteOperation[] = [];
+const routePrefixes = new Map<number, string>();
+
+const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeChecker): number | undefined => {
+  const handlerIdentifier = node.arguments?.find(x => x.kind === ts.SyntaxKind.Identifier) as ts.Identifier;
+  const handlerIdentifierSymbol = tc.getSymbolAtLocation(handlerIdentifier)!;
+  // @ts-ignore
+  const moduleSpecifierSymbol = tc.getSymbolAtLocation(handlerIdentifierSymbol.declarations![0]?.parent?.moduleSpecifier)!;
+  // @ts-ignore
+  const routerNode = tc.getExportsOfModule(moduleSpecifierSymbol).find(x => x.name === 'default')?.declarations?.[0].expression;
+  // @ts-ignore
+  const routerId = tc.getSymbolAtLocation(routerNode)?.id as number;
+  return routerId;
+}
+
 const generateSpecForRoute = (
   node: ts.CallExpression,
   file: ts.SourceFile,
@@ -172,19 +210,31 @@ const generateSpecForRoute = (
   }
 
   const type = tc.getTypeOfSymbolAtLocation(symbol, functionCallNode);
-  if (type.symbol?.name !== 'IRouterMatcher') {
+  const typeName = tc.typeToString(type);
+  if (!typeName.includes('IRouterMatcher')) {
+    if (node.getText(file).startsWith('app.use(\'/')) {
+      const isRequestHandler = typeName.startsWith('ApplicationRequestHandler');
+      if (!isRequestHandler) return;
+
+      const routePrefix = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
+      if (!routePrefix) return;
+
+      const routerId = getRouterIdFromRequestHandler(node, tc);
+      if (!routerId) return;
+
+      routePrefixes.set(routerId, routePrefix);
+    }
     return;
   }
 
-  const route = node.arguments
-    .find(x => x.kind === ts.SyntaxKind.StringLiteral)
-    ?.getText(file)
-    ?.replace(/['"]/g, '')
-    ?.replace(/:([a-zA-Z]+)/g, '{$1}');
+  const route = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
 
   if (!route) {
-    throw new Error('Failed to get route');
+    throw new Error(`Failed to get route for node: ${node.getText(file)}`);
   }
+
+  const routerNode = (functionCallNode as ts.PropertyAccessExpression).expression as ts.PropertyAccessExpression;
+  const routerId = (tc.getSymbolAtLocation(routerNode)?.declarations?.[0] as VariableDeclaration).symbol.id as number;
 
   const schemas = node.typeArguments?.map((typeArg, index) => {
     if (typeArg.kind !== ts.SyntaxKind.TypeReference) {
@@ -250,10 +300,7 @@ const generateSpecForRoute = (
     ];
   }
 
-  spec.paths[route] = {
-    ...(spec.paths[route] || {}),
-    [method]: operation,
-  };
+  routesOperations.push({ route, method, operation, routerId })
 }
 
 const iterateCallExpressions = (
