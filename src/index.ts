@@ -7,10 +7,11 @@ import { Swagger } from './swagger';
 // [X] move types to definitions
 // [ ] handle query params
 // [ ] handle path params
-// [ ] handle response status
+// [X] handle response status
 // [X] handle multiple types (oneOf)
 // [X] handle arrays
 // [X] Type in a type without a name e.g. type T = { a: { b: string } }
+// [ ] handle nested routes e.g. app.use('/api', router);
 
 // Bugs:
 // [ ] app.get can't find symbol
@@ -22,6 +23,7 @@ const ROUTE_PARAMS_INDEX = 1;
 const RESPONSE_INDEX = 2;
 const REQUEST_INDEX = 3;
 const QUERY_PARAMS_INDEX = 4;
+const PARAMS_TO_SAVE = [RESPONSE_INDEX, REQUEST_INDEX];
 
 function parse(fileName: string): ts.Program {
   return ts.createProgram([fileName], TS_COMPILER_OPTIONS);
@@ -65,22 +67,19 @@ const isSimpleType = (type: string) => {
 type ArrayType = ts.Type & { resolvedTypeArguments: ts.Type[]; }
 type PropertyType = ts.Type & { types: ts.Type[] };
 
-const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
+const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
   const typeName = tc.typeToString(type);
   const isDynamicType = typeName.startsWith("{") && typeName.endsWith("}");
 
   if (isSimpleType(typeName)) {
-    return {
-      type: typeName,
-    };
+    return { type: typeName };
   }
 
   if (type.symbol?.name === 'Array') {
     const arrayType = type as ArrayType;
-    console.log(typeName, tc.typeToString(arrayType.resolvedTypeArguments[0]));
     return {
       type: 'array',
-      items: createDefinitionFromType(arrayType.resolvedTypeArguments[0], node, tc, save),
+      items: createSchemaFromType(arrayType.resolvedTypeArguments[0], node, tc, save),
     };
   };
 
@@ -110,13 +109,13 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
             return { type: propertyTypeName };
           }
 
-          return createDefinitionFromType(x, node, tc, save);
+          return createSchemaFromType(x, node, tc, save);
         }),
       };
       continue;
     }
 
-    definition.properties![property.name] = createDefinitionFromType(propertyType, node, tc, save);
+    definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
   }
 
   definition.required = definition.required?.length ? definition.required : undefined;
@@ -130,11 +129,31 @@ const createDefinitionFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeCheck
     : { $ref: `#/components/schemas/${typeName}` };
 }
 
-const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChecker) => {
+const findStatusesForRoute = (node: ts.Node, tc: ts.TypeChecker, file: ts.SourceFile, statuses: number[] = []): number[] => {
+  const symbol = tc.getSymbolAtLocation(node);
+  if (symbol) {
+    const type = tc.getTypeOfSymbolAtLocation(symbol, node);
+    if (['status', 'sendStatus'].includes(type.symbol?.name)) {
+      // @ts-ignore
+      const status = node.parent?.arguments?.[0]?.getText(file);
+      return status ? [...statuses, Number(status)] : statuses;
+    }
+  }
+
+  if (node.getChildCount(file) === 0) {
+    return statuses;
+  }
+
+  return node
+    .getChildren(file)
+    .reduce((acc, child) => [...acc, ...findStatusesForRoute(child, tc, file)], [] as number[]);
+};
+
+const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChecker, parents: ts.Node[] = []) => {
   if (node.kind === ts.SyntaxKind.CallExpression) {
     const prop = node as ts.CallExpression;
     const functionCallNode = prop.getChildAt(0, file);
-    const symbol = tc.getSymbolAtLocation(functionCallNode)!;
+    const symbol = tc.getSymbolAtLocation(functionCallNode);
     if (!symbol) {
       console.log('no symbol', functionCallNode.getText(file));
       return;
@@ -142,8 +161,12 @@ const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChec
 
     const type = tc.getTypeOfSymbolAtLocation(symbol, functionCallNode);
 
-    if (type.symbol && type.symbol.name === 'IRouterMatcher') {
+    if (type.symbol?.name === 'IRouterMatcher') {
       const route = prop.arguments.find(x => x.kind === ts.SyntaxKind.StringLiteral)?.getText(file)?.replace(/['"]/g, '');
+
+      if (!route) {
+        throw new Error('Failed to get route');
+      }
 
       const schemas = prop.typeArguments?.map((typeArg, index) => {
         if (typeArg.kind !== ts.SyntaxKind.TypeReference) {
@@ -153,40 +176,45 @@ const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChec
         const typeRef = typeArg as ts.TypeReferenceNode;
         const typeType = tc.getTypeAtLocation(typeRef.typeName);
 
-
         return {
           index,
           kind: typeArg.kind,
-          schema: createDefinitionFromType(typeType, typeRef.typeName, tc, true)
+          schema: createSchemaFromType(typeType, typeRef.typeName, tc, PARAMS_TO_SAVE.includes(index))
         };
       }) || [];
 
+      const statuses = findStatusesForRoute(parents[0], tc, file);
       const method = symbol.name as 'get' | 'post' | 'put' | 'delete' | 'patch';
-      const operation: Swagger.Operation = {
-        responses: {
-          200: {
-            description: 'success',
-            content: {
-              'application/json': {
-                schema: schemas.find(x => x.index === RESPONSE_INDEX)?.schema,
-              }
-            }
-          }
-        }
+      const operation: Swagger.Operation = { responses: {} };
+
+      const responseSchema = schemas.find(x => x.index === RESPONSE_INDEX)?.schema || { type: 'object' };
+      const successStatus = statuses.find(x => x >= 200 && x < 300) || 200;
+      operation.responses![successStatus] = {
+        description: 'success',
+        content: {
+          'application/json': { schema: responseSchema },
+        },
       };
+
+      const errorStatuses = statuses.filter(x => x >= 400);
+      if (errorStatuses.length) {
+        errorStatuses.forEach(status => {
+          operation.responses![status] = {
+            description: 'error',
+            content: {
+              'application/json': { schema: { type: 'object' } },
+            },
+          };
+        });
+      }
+
       const requestSchema = schemas.find(x => x.index === REQUEST_INDEX)?.schema;
       if (requestSchema) {
         operation.requestBody = {
           content: {
-            'application/json': {
-              schema: requestSchema,
-            }
+            'application/json': { schema: requestSchema }
           }
         };
-      }
-
-      if (!route) {
-        throw new Error('Failed to get route');
       }
 
       spec.paths[route] = {
@@ -201,7 +229,7 @@ const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChec
   }
 
   node.getChildren(file).forEach(child => {
-    generateSpecForNode(child, file, tc);
+    generateSpecForNode(child, file, tc, [...parents, node]);
   });
 };
 
