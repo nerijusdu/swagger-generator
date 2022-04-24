@@ -13,7 +13,7 @@ import { Swagger } from './swagger';
 // [X] handle arrays
 // [X] Type in a type without a name e.g. type T = { a: { b: string } }
 // [X] handle nested routes e.g. app.use('/api', router);
-// [ ] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
+// [X] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
 
 // Bugs:
 // [X] app.get can't find symbol
@@ -40,11 +40,16 @@ function main(entrypoint: string) {
   });
 
   for (const operation of routesOperations) {
-    const prefix = routePrefixes.get(operation.routerId) || '';
-    const path = `${prefix}${operation.route}`;
-    spec.paths![path] = {
-      ...(spec.paths![path] || {}),
-      [operation.method]: operation.operation,
+    const prefixes = routePrefixes.get(operation.routerId) || [];
+    for (const prefix of prefixes) {
+      const path = `${prefix}${operation.route}`;
+      spec.paths![path] = {
+        ...(spec.paths![path] || {}),
+        [operation.method]: {
+          tags: [prefix],
+          ...operation.operation,
+        },
+      };
     }
   }
 
@@ -182,7 +187,7 @@ type RouteOperation = {
 }
 
 const routesOperations: RouteOperation[] = [];
-const routePrefixes = new Map<number, string>();
+const routePrefixes = new Map<number, string[]>();
 
 const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeChecker): number | undefined => {
   const handlerIdentifier = node.arguments?.find(x => x.kind === ts.SyntaxKind.Identifier) as ts.Identifier;
@@ -222,7 +227,8 @@ const generateSpecForRoute = (
       const routerId = getRouterIdFromRequestHandler(node, tc);
       if (!routerId) return;
 
-      routePrefixes.set(routerId, routePrefix);
+      const existingPrefixes = routePrefixes.get(routerId) || [];
+      routePrefixes.set(routerId, [...existingPrefixes, routePrefix]);
     }
     return;
   }

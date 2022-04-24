@@ -12,6 +12,7 @@ app.use(express.json())
 app.get('/', (req, res) => res.send('Hello World!'));
 
 app.use('/api', routes);
+app.use('/cats-api', routes);
 app.use('/dogs-api', dogRoutes);
 
 app.listen(Number(port), () => {
