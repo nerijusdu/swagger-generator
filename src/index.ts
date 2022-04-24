@@ -1,4 +1,5 @@
 import * as ts from 'typescript';
+import * as fs from 'fs';
 import { Swagger } from './swagger';
 
 // TODO:
@@ -45,7 +46,9 @@ function main(entrypoint: string) {
       }
     });
   });
-  console.log(JSON.stringify(spec, null, 2));
+
+  // console.log(JSON.stringify(spec, null, 2));
+  fs.writeFileSync(`./sample/openapi.json`, JSON.stringify(spec, null, 2));
 }
 
 const spec: Swagger.Spec = {
