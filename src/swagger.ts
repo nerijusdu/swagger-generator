@@ -72,12 +72,20 @@ export namespace Swagger {
 
   export type CollectionFormat = 'csv' | 'ssv' | 'tsv' | 'pipes' | 'multi';
 
-  export type Parameter =
-      BodyParameter |
-      FormDataParameter |
-      QueryParameter |
-      PathParameter |
-      HeaderParameter;
+  // export type Parameter =
+  //     BodyParameter |
+  //     FormDataParameter |
+  //     QueryParameter |
+  //     PathParameter |
+  //     HeaderParameter;
+
+  export interface Parameter {
+    name: string;
+    in: 'query' | 'path';
+    description?: string;
+    required?: boolean;
+    schema?: Schema;
+  }
 
   export interface Path {
       $ref?: string;
@@ -100,7 +108,7 @@ export namespace Swagger {
       operationId?: string;
       produces?: [string];
       consumes?: [string];
-      parameters?: [Parameter];
+      parameters?: Parameter[];
       schemes?: [string];
       deprecated?: boolean;
       security?: [Security];

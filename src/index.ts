@@ -6,8 +6,8 @@ import { Swagger } from './swagger';
 // [X] handle request body type
 // [X] handle response type
 // [X] move types to definitions
-// [ ] handle query params
-// [ ] handle path params
+// [X] handle query params
+// [X] handle path params
 // [X] handle response status
 // [X] handle multiple types (oneOf)
 // [X] handle arrays
@@ -52,20 +52,13 @@ function main(entrypoint: string) {
 }
 
 const spec: Swagger.Spec = {
-  info: {
-    title: 'api',
-    version: '1.0.0',
-  },
+  info: { title: 'api', version: '1.0.0' },
   openapi: '3.0.0',
   paths: {},
-  components: {
-    schemas: {},
-  }
+  components: { schemas: {} },
 }
 
-const isSimpleType = (type: string) => {
-  return ['string', 'number', 'boolean', 'integer'].includes(type);
-}
+const isSimpleType = (type: string) => ['string', 'number', 'boolean', 'integer'].includes(type)
 
 type ArrayType = ts.Type & { resolvedTypeArguments: ts.Type[]; }
 type PropertyType = ts.Type & { types: ts.Type[] };
@@ -127,7 +120,7 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
     spec.components!.schemas![typeName] = definition;
   }
 
-  return isDynamicType
+  return isDynamicType || !save
     ? definition
     : { $ref: `#/components/schemas/${typeName}` };
 }
@@ -152,6 +145,27 @@ const findStatusesForRoute = (node: ts.Node, tc: ts.TypeChecker, file: ts.Source
     .reduce((acc, child) => [...acc, ...findStatusesForRoute(child, tc, file)], [] as number[]);
 };
 
+const createParametersFromSchema = (schema: Swagger.Schema, location: 'path' | 'query') : Swagger.Parameter[] => {
+  const properties = schema?.properties || {};
+  const params: Swagger.Parameter[] = [];
+
+  for (const propertyName in properties) {
+    const param: Swagger.Parameter = {
+      name: propertyName,
+      in: location,
+      schema: properties[propertyName],
+    };
+
+    if (schema?.required?.includes(propertyName)) {
+      param.required = true;
+    }
+
+    params.push(param)
+  }
+
+  return params;
+};
+
 const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChecker, parents: ts.Node[] = []) => {
   if (node.kind === ts.SyntaxKind.CallExpression) {
     const prop = node as ts.CallExpression;
@@ -165,7 +179,11 @@ const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChec
     const type = tc.getTypeOfSymbolAtLocation(symbol, functionCallNode);
 
     if (type.symbol?.name === 'IRouterMatcher') {
-      const route = prop.arguments.find(x => x.kind === ts.SyntaxKind.StringLiteral)?.getText(file)?.replace(/['"]/g, '');
+      const route = prop.arguments
+        .find(x => x.kind === ts.SyntaxKind.StringLiteral)
+        ?.getText(file)
+        ?.replace(/['"]/g, '')
+        ?.replace(/:([a-zA-Z]+)/g, '{$1}');
 
       if (!route) {
         throw new Error('Failed to get route');
@@ -218,6 +236,21 @@ const generateSpecForNode = (node: ts.Node, file: ts.SourceFile, tc: ts.TypeChec
             'application/json': { schema: requestSchema }
           }
         };
+      }
+
+      const routeParams = schemas.find(x => x.index === ROUTE_PARAMS_INDEX)?.schema;
+      if (routeParams) {
+        operation.parameters = [
+          ...(operation.parameters || []),
+          ...createParametersFromSchema(routeParams, 'path'),
+        ];
+      }
+      const queryParams = schemas.find(x => x.index === QUERY_PARAMS_INDEX)?.schema;
+      if (queryParams) {
+        operation.parameters = [
+          ...(operation.parameters || []),
+          ...createParametersFromSchema(queryParams, 'query'),
+        ];
       }
 
       spec.paths[route] = {

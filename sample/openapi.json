@@ -5,7 +5,7 @@
   },
   "openapi": "3.0.0",
   "paths": {
-    "/cat/:catId": {
+    "/cat/{catId}": {
       "get": {
         "responses": {
           "200": {
@@ -38,7 +38,31 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "catId",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/cats": {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Cat } from './models';
+import { Cat, ColorRGB } from './models';
 
 const routes = Router();
 
@@ -7,7 +7,12 @@ type CatRouteParams = {
   catId: string;
 }
 
-routes.get<any, CatRouteParams, Cat>('/cat/:catId', (req, res) => {
+type CatQueryParams = {
+  limit?: number;
+  color?: ColorRGB;
+}
+
+routes.get<any, CatRouteParams, Cat, any, CatQueryParams>('/cat/:catId', (req, res) => {
   if (req.params.catId === '1') {
     res.sendStatus(404);
   }
