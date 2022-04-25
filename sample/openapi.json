@@ -265,6 +265,15 @@
           "hex"
         ]
       },
+      "AnimalType": {
+        "type": "object",
+        "properties": {},
+        "enum": [
+          "0",
+          "1",
+          "2"
+        ]
+      },
       "Color": {
         "type": "object",
         "properties": {
@@ -273,6 +282,9 @@
           },
           "type": {
             "$ref": "#/components/schemas/ColorType"
+          },
+          "animalType": {
+            "$ref": "#/components/schemas/AnimalType"
           }
         }
       },

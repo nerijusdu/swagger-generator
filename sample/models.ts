@@ -6,10 +6,16 @@ export type ColorRGB = string;
 export type Color = {
   rgb?: ColorRGB;
   type?: ColorType;
+  animalType?: AnimalType;
 }
 export enum ColorType {
   RGB = 'rgb',
   HEX = 'hex',
+}
+export enum AnimalType {
+  CAT,
+  DOG,
+  FISH,
 }
 
 export type Cat = Animal & {

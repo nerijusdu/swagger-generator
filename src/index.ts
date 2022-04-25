@@ -2,7 +2,7 @@
 import ts from 'typescript';
 import * as fs from 'fs';
 import { Swagger } from './swagger';
-import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, TypeWithValue } from './models/helperTypes';
+import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, TypeWithValue, ExpressionWithText } from './models/helperTypes';
 import { isSimpleType, sanitizeRouteArgument } from './util';
 
 const ROUTE_PARAMS_INDEX = 1;
@@ -228,7 +228,13 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
   };
 
   if (isEnum) {
-    definition.enum = (type as TypeWithTypes).types.map(x => (x as TypeWithValue<string>).value);
+    let index = 0;
+    definition.enum = [];
+    type.symbol.exports!.forEach((value) => {
+      const declaration = value?.valueDeclaration as ts.PropertyAssignment;
+      const initializer = declaration?.initializer as ExpressionWithText;
+      definition.enum?.push(initializer?.text || (index++).toString());
+    });
   }
   else {
     for (const property of tc.getPropertiesOfType(type)) {
