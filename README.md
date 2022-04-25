@@ -27,6 +27,7 @@ To test the generated file:
 [X] Type in a type without a name e.g. type T = { a: { b: string } }
 [X] handle nested routes e.g. app.use('/api', router);
 [X] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
+[X] handle nested routes in routers e.g. router.use('/api', router2)
 [X] handle enums
 [ ] handle type joins (&)
 [ ] generate descriptions for responses

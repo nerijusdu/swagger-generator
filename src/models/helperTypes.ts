@@ -17,3 +17,8 @@ export type RouteOperation = {
   operation: Swagger.Operation;
   routerId: number;
 }
+
+export type RoutePrefix = {
+  value: string;
+  parentRouterId?: number;
+}

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import dogRoutes from './dogRoutes';
 import { Cat, ColorRGB } from './models';
 
 const routes = Router();
@@ -43,6 +44,8 @@ routes.post<any, any, Cat, Cat>('/cat', (req, res) => {
   const cat = req.body;
   res.status(201).json(cat);
 });
+
+routes.use('/doggos', dogRoutes);
 
 
 export default routes;

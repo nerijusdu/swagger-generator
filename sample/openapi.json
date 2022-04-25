@@ -5,10 +5,10 @@
   },
   "openapi": "3.0.0",
   "paths": {
-    "/api/cat/{catId}": {
+    "/cats-api/doggos/dogs/{dogId}": {
       "get": {
         "tags": [
-          "/api"
+          "/cats-api/doggos"
         ],
         "responses": {
           "200": {
@@ -16,27 +16,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Cat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Dog"
                 }
               }
             }
@@ -44,26 +24,41 @@
         },
         "parameters": [
           {
-            "name": "catId",
+            "name": "dogId",
             "in": "path",
             "schema": {
               "type": "string"
             },
             "required": true
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "number"
+          }
+        ]
+      }
+    },
+    "/dogs-api/dogs/{dogId}": {
+      "get": {
+        "tags": [
+          "/dogs-api"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dog"
+                }
+              }
             }
-          },
+          }
+        },
+        "parameters": [
           {
-            "name": "color",
-            "in": "query",
+            "name": "dogId",
+            "in": "path",
             "schema": {
               "type": "string"
-            }
+            },
+            "required": true
           }
         ]
       }
@@ -131,25 +126,6 @@
         ]
       }
     },
-    "/api/cats": {
-      "get": {
-        "tags": [
-          "/api"
-        ],
-        "responses": {
-          "200": {
-            "description": "success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/cats-api/cats": {
       "get": {
         "tags": [
@@ -163,34 +139,6 @@
                 "schema": {
                   "type": "object"
                 }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/cat": {
-      "post": {
-        "tags": [
-          "/api"
-        ],
-        "responses": {
-          "201": {
-            "description": "success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Cat"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Cat"
               }
             }
           }
@@ -223,35 +171,6 @@
             }
           }
         }
-      }
-    },
-    "/dogs-api/dogs/{dogId}": {
-      "get": {
-        "tags": [
-          "/dogs-api"
-        ],
-        "responses": {
-          "200": {
-            "description": "success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Dog"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "dogId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ]
       }
     }
   },

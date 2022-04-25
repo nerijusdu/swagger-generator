@@ -2,7 +2,7 @@
 import ts from 'typescript';
 import * as fs from 'fs';
 import { Swagger } from './swagger';
-import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, ExpressionWithText, TypeWithValue } from './models/helperTypes';
+import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, ExpressionWithText, TypeWithValue, RoutePrefix } from './models/helperTypes';
 import { isSimpleType, sanitizeRouteArgument } from './util';
 
 const ROUTE_PARAMS_INDEX = 1;
@@ -12,7 +12,7 @@ const QUERY_PARAMS_INDEX = 4;
 const PARAMS_TO_SAVE = [RESPONSE_INDEX, REQUEST_INDEX];
 
 const routesOperations: RouteOperation[] = [];
-const routePrefixes = new Map<number, string[]>();
+const routePrefixMap = new Map<number, RoutePrefix[]>();
 const spec: Swagger.Spec = {
   info: { title: 'api', version: '1.0.0' },
   openapi: '3.0.0',
@@ -35,6 +35,7 @@ function main(entrypoint: string) {
     });
   });
 
+  console.log(routePrefixMap);
   addPathsToSpec();
 
   // console.log(JSON.stringify(spec, null, 2));
@@ -75,8 +76,9 @@ const generateSpecForRoute = (
 
   const type = tc.getTypeOfSymbolAtLocation(symbol, functionCallNode);
   const typeName = tc.typeToString(type);
-  if (!typeName.includes('IRouterMatcher')) {
-    if (node.getText(file).startsWith('app.use(\'/')) {
+
+  if (!typeName.includes('IRouterMatcher') || typeName.includes('IRouterHandler')) {
+    if (symbol.name === 'use') {
       setRoutePrefix(typeName, node, tc, file);
     }
     return;
@@ -159,8 +161,13 @@ const generateSpecForRoute = (
   routesOperations.push({ route, method, operation, routerId });
 };
 
-const setRoutePrefix = (typeName: string, node: ts.CallExpression, tc: ts.TypeChecker, file: ts.SourceFile) => {
-  const isRequestHandler = typeName.startsWith('ApplicationRequestHandler');
+const setRoutePrefix = (
+  typeName: string,
+  node: ts.CallExpression,
+  tc: ts.TypeChecker,
+  file: ts.SourceFile,
+) => {
+  const isRequestHandler = typeName.startsWith('ApplicationRequestHandler') || typeName.includes('IRouterHandler');
   if (!isRequestHandler) return;
 
   const routePrefix = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
@@ -169,8 +176,14 @@ const setRoutePrefix = (typeName: string, node: ts.CallExpression, tc: ts.TypeCh
   const routerId = getRouterIdFromRequestHandler(node, tc);
   if (!routerId) return;
 
-  const existingPrefixes = routePrefixes.get(routerId) || [];
-  routePrefixes.set(routerId, [...existingPrefixes, routePrefix]);
+  // @ts-ignore
+  const parentRouterId = tc.getSymbolAtLocation(node.getChildAt(0, file).expression)?.valueDeclaration?.symbol?.id;
+
+  const existingPrefixes = routePrefixMap.get(routerId) || [];
+  routePrefixMap.set(routerId, [
+    ...existingPrefixes,
+    { value: routePrefix!, parentRouterId },
+  ]);
 };
 
 const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeChecker): number | undefined => {
@@ -182,18 +195,34 @@ const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeCheck
   const routerNode = tc.getExportsOfModule(moduleSpecifierSymbol).find(x => x.name === 'default')?.declarations?.[0].expression;
   // @ts-ignore
   const routerId = tc.getSymbolAtLocation(routerNode)?.id as number;
+  // @ts-ignore
   return routerId;
+};
+
+const getFullPrefixForRouter = (routerId: number): string[] => {
+  const prefixes = routePrefixMap.get(routerId);
+  if (!prefixes) return [];
+
+  return prefixes.flatMap(({ value, parentRouterId }) => {
+    if (parentRouterId) {
+      const parentPrefixes = getFullPrefixForRouter(parentRouterId).map(x => x + value);
+      return parentPrefixes.length ? [...parentPrefixes] : [value];
+    }
+
+    return [value];
+  });
 };
 
 const addPathsToSpec = () => {
   for (const operation of routesOperations) {
-    const prefixes = routePrefixes.get(operation.routerId) || [];
-    for (const prefix of prefixes) {
-      const path = `${prefix}${operation.route}`;
+    const routePrefixes = getFullPrefixForRouter(operation.routerId);
+
+    for (const fullPrefix of routePrefixes) {
+      const path = `${fullPrefix}${operation.route}`;
       spec.paths![path] = {
         ...(spec.paths![path] || {}),
         [operation.method]: {
-          tags: [prefix],
+          tags: fullPrefix ? [fullPrefix] : undefined,
           ...operation.operation,
         },
       };
