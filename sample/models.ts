@@ -7,9 +7,10 @@ export type Color = {
   rgb?: ColorRGB;
   type?: ColorType;
   animalType?: AnimalType;
-  values?: 'red' | 'green' | 'blue';
+  values?: ColorValues;
   number?: NumberedEnum;
 }
+export type ColorValues = 'red' | 'green' | 'blue' | number;
 export enum ColorType {
   RGB = 'rgb',
   HEX = 'hex',

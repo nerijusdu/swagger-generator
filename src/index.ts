@@ -204,6 +204,7 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
   const typeName = tc.typeToString(type);
   const isEnum = type.flags & ts.TypeFlags.EnumLiteral || type.flags & ts.TypeFlags.Enum;
   const isValue = type.flags & ts.TypeFlags.StringLiteral;
+  const isUnion = type.flags & ts.TypeFlags.Union;
   const isDynamicType = typeName.startsWith('{') && typeName.endsWith('}') || isValue;
 
   if (isSimpleType(typeName)) {
@@ -253,7 +254,21 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
     definition.enum = [(type as TypeWithValue<string>).value];
   }
 
+  else if (isUnion) {
+    definition.oneOf = (type as TypeWithTypes).types.map(x => {
+      const propertyTypeName = tc.typeToString(x);
+      if (isSimpleType(propertyTypeName)) {
+        return { type: propertyTypeName };
+      }
+
+      return createSchemaFromType(x, node, tc, save);
+    });
+  }
+
   else {
+    if (typeName === 'ColorValues') {
+      console.log(type);
+    }
     for (const property of tc.getPropertiesOfType(type)) {
       const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as TypeWithTypes;
       const typeString = tc.typeToString(propertyType);
@@ -281,6 +296,7 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
   }
 
   definition.required = definition.required?.length ? definition.required : undefined;
+  definition.properties = Object.keys(definition.properties || {}).length ? definition.properties : undefined;
 
   if (save && !isDynamicType) {
     spec.components!.schemas![typeName] = definition;
