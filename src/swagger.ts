@@ -140,7 +140,7 @@ export namespace Swagger {
       uniqueItems?: boolean;
       maxProperties?: number;
       minProperties?: number;
-      enum?: [string];
+      enum?: string[];
       type?: string;
       items?: Schema | [Schema];
   }

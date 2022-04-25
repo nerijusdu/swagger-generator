@@ -2,7 +2,7 @@
 import ts from 'typescript';
 import * as fs from 'fs';
 import { Swagger } from './swagger';
-import { ArrayType, PropertyType, RouteOperation, VariableDeclaration } from './models/helperTypes';
+import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, TypeWithValue } from './models/helperTypes';
 import { isSimpleType, sanitizeRouteArgument } from './util';
 
 const ROUTE_PARAMS_INDEX = 1;
@@ -203,6 +203,7 @@ const addPathsToSpec = () => {
 const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
   const typeName = tc.typeToString(type);
   const isDynamicType = typeName.startsWith('{') && typeName.endsWith('}');
+  const isEnum = type.flags & ts.TypeFlags.EnumLiteral || type.flags & ts.TypeFlags.Enum;
 
   if (isSimpleType(typeName)) {
     return { type: typeName };
@@ -226,29 +227,34 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
     required: [],
   };
 
-  for (const property of tc.getPropertiesOfType(type)) {
-    const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as PropertyType;
-    const typeString = tc.typeToString(propertyType);
-    if (!(property.getFlags() & ts.SymbolFlags.Optional) && !typeString.includes('undefined')) {
-      definition.required!.push(property.name);
+  if (isEnum) {
+    definition.enum = (type as TypeWithTypes).types.map(x => (x as TypeWithValue<string>).value);
+  }
+  else {
+    for (const property of tc.getPropertiesOfType(type)) {
+      const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as TypeWithTypes;
+      const typeString = tc.typeToString(propertyType);
+      if (!(property.getFlags() & ts.SymbolFlags.Optional) && !typeString.includes('undefined')) {
+        definition.required!.push(property.name);
+      }
+
+      if (typeString.includes('|')) {
+        const types = propertyType.types;
+        definition.properties![property.name] = {
+          oneOf: types.map(x => {
+            const propertyTypeName = tc.typeToString(x);
+            if (isSimpleType(propertyTypeName)) {
+              return { type: propertyTypeName };
+            }
+
+            return createSchemaFromType(x, node, tc, save);
+          }),
+        };
+        continue;
+      }
+
+      definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
     }
-
-    if (typeString.includes('|')) {
-      const types = propertyType.types;
-      definition.properties![property.name] = {
-        oneOf: types.map(x => {
-          const propertyTypeName = tc.typeToString(x);
-          if (isSimpleType(propertyTypeName)) {
-            return { type: propertyTypeName };
-          }
-
-          return createSchemaFromType(x, node, tc, save);
-        }),
-      };
-      continue;
-    }
-
-    definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
   }
 
   definition.required = definition.required?.length ? definition.required : undefined;

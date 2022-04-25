@@ -27,5 +27,6 @@ To test the generated file:
 [X] Type in a type without a name e.g. type T = { a: { b: string } }
 [X] handle nested routes e.g. app.use('/api', router);
 [X] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
+[X] handle enums
 [ ] generate descriptions for responses
 [ ] test if type arrangement for IRequestMatcher is always the same

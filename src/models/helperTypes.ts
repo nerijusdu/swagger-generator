@@ -3,7 +3,9 @@ import { Swagger } from '../swagger';
 
 export type ArrayType = ts.Type & { resolvedTypeArguments: ts.Type[]; }
 
-export type PropertyType = ts.Type & { types: ts.Type[] };
+export type TypeWithTypes = ts.Type & { types: ts.Type[] };
+
+export type TypeWithValue<T> = ts.Type & { value: T };
 
 export type VariableDeclaration = ts.Declaration & { symbol: ts.Symbol & { id: number }; };
 

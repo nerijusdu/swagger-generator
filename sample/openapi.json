@@ -257,11 +257,22 @@
   },
   "components": {
     "schemas": {
+      "ColorType": {
+        "type": "object",
+        "properties": {},
+        "enum": [
+          "rgb",
+          "hex"
+        ]
+      },
       "Color": {
         "type": "object",
         "properties": {
           "rgb": {
             "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ColorType"
           }
         }
       },
