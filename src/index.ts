@@ -85,7 +85,8 @@ const generateSpecForRoute = (
   const route = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
 
   if (!route) {
-    throw new Error(`Failed to get route for node: ${node.getText(file)}`);
+    console.log(`Failed to get route for node: ${node.getText(file)}`);
+    return;
   }
 
   const routerNode = (functionCallNode as ts.PropertyAccessExpression).expression as ts.PropertyAccessExpression;
