@@ -7,6 +7,8 @@ export type Color = {
   rgb?: ColorRGB;
   type?: ColorType;
   animalType?: AnimalType;
+  values?: 'red' | 'green' | 'blue';
+  number?: NumberedEnum;
 }
 export enum ColorType {
   RGB = 'rgb',
@@ -16,6 +18,10 @@ export enum AnimalType {
   CAT,
   DOG,
   FISH,
+}
+export enum NumberedEnum {
+  ONE = 1,
+  TWO = 2,
 }
 
 export type Cat = Animal & {

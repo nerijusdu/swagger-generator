@@ -258,7 +258,7 @@
   "components": {
     "schemas": {
       "ColorType": {
-        "type": "object",
+        "type": "string",
         "properties": {},
         "enum": [
           "rgb",
@@ -266,12 +266,20 @@
         ]
       },
       "AnimalType": {
-        "type": "object",
+        "type": "number",
         "properties": {},
         "enum": [
-          "0",
-          "1",
-          "2"
+          0,
+          1,
+          2
+        ]
+      },
+      "NumberedEnum": {
+        "type": "number",
+        "properties": {},
+        "enum": [
+          1,
+          2
         ]
       },
       "Color": {
@@ -285,6 +293,34 @@
           },
           "animalType": {
             "$ref": "#/components/schemas/AnimalType"
+          },
+          "values": {
+            "oneOf": [
+              {
+                "type": "string",
+                "properties": {},
+                "enum": [
+                  "red"
+                ]
+              },
+              {
+                "type": "string",
+                "properties": {},
+                "enum": [
+                  "green"
+                ]
+              },
+              {
+                "type": "string",
+                "properties": {},
+                "enum": [
+                  "blue"
+                ]
+              }
+            ]
+          },
+          "number": {
+            "$ref": "#/components/schemas/NumberedEnum"
           }
         }
       },
