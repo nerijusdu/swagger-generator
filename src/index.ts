@@ -173,7 +173,7 @@ const setRoutePrefix = (
   const routePrefix = sanitizeRouteArgument(node.arguments?.find(x => x.kind === ts.SyntaxKind.StringLiteral), file);
   if (!routePrefix) return;
 
-  const routerId = getRouterIdFromRequestHandler(node, tc);
+  const routerId = getRouterIdFromRequestHandler(node, tc, file);
   if (!routerId) return;
 
   // @ts-ignore
@@ -186,17 +186,49 @@ const setRoutePrefix = (
   ]);
 };
 
-const getRouterIdFromRequestHandler = (node: ts.CallExpression, tc: ts.TypeChecker): number | undefined => {
-  const handlerIdentifier = node.arguments?.find(x => x.kind === ts.SyntaxKind.Identifier) as ts.Identifier;
+const getRouterIdFromRequestHandler = (
+  node: ts.CallExpression,
+  tc: ts.TypeChecker,
+  file:  ts.SourceFile,
+): number | undefined => {
+  let handlerIdentifier = node.arguments?.find(x => x.kind === ts.SyntaxKind.Identifier) as ts.Identifier;
+  let exportName = 'default';
+  if (!handlerIdentifier) {
+    const nestedRouter = node.arguments?.find(x => x.kind === ts.SyntaxKind.PropertyAccessExpression);
+    // @ts-ignore
+    exportName = nestedRouter?.name?.text || 'default';
+    // @ts-ignore
+    handlerIdentifier = nestedRouter?.expression as ts.Identifier;
+  }
+
   const handlerIdentifierSymbol = tc.getSymbolAtLocation(handlerIdentifier)!;
+  const moduleSpecifierSymbol = tc.getSymbolAtLocation(
+    // @ts-ignore
+    findInParents(handlerIdentifierSymbol.declarations![0], ts.SyntaxKind.ImportDeclaration)?.moduleSpecifier
+  )!;
   // @ts-ignore
-  const moduleSpecifierSymbol = tc.getSymbolAtLocation(handlerIdentifierSymbol.declarations![0]?.parent?.moduleSpecifier)!;
+  const declaration = tc.getExportsOfModule(moduleSpecifierSymbol).find(x => x.name === exportName)?.declarations?.[0];
+
   // @ts-ignore
-  const routerNode = tc.getExportsOfModule(moduleSpecifierSymbol).find(x => x.name === 'default')?.declarations?.[0].expression;
+  let routerNode = declaration?.expression;
+  if (!routerNode) {
+    routerNode = declaration?.getChildren(file)[0];
+  }
   // @ts-ignore
   const routerId = tc.getSymbolAtLocation(routerNode)?.id as number;
   // @ts-ignore
   return routerId;
+};
+
+const findInParents = (node: ts.Node, kind: ts.SyntaxKind): ts.Node | undefined => {
+  let currentNode = node;
+  while (currentNode.parent) {
+    if (currentNode.parent.kind === kind) {
+      return currentNode.parent;
+    }
+    currentNode = currentNode.parent;
+  }
+  return undefined;
 };
 
 const getFullPrefixForRouter = (routerId: number): string[] => {

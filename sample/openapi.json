@@ -172,6 +172,35 @@
           }
         }
       }
+    },
+    "/advanced/another/yeeted": {
+      "get": {
+        "tags": [
+          "/advanced/another"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dog"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "dogId",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ]
+      }
     }
   },
   "components": {

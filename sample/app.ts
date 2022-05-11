@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import routes from './routes';
 import dogRoutes from './dogRoutes';
+import * as advancedRoutes from './advancedRoutes';
 
 // Type is needed here for some reason
 // must be imported explicitly, can't use express.Express
@@ -13,6 +14,7 @@ app.get('/', (req, res) => res.send('Hello World!'));
 
 app.use('/cats-api', routes);
 app.use('/dogs-api', dogRoutes);
+app.use('/advanced/another', advancedRoutes.anotherRouter);
 
 app.listen(Number(port), () => {
   console.log(`Server is running on port ${port}`);
