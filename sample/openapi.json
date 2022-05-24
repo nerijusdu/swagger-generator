@@ -344,6 +344,21 @@
             "required": [
               "nestedProp"
             ]
+          },
+          "joined": {
+            "type": "object",
+            "properties": {
+              "joinedProp": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "joinedProp",
+              "name"
+            ]
           }
         },
         "required": [

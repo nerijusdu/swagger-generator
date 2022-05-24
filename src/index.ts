@@ -263,13 +263,17 @@ const addPathsToSpec = () => {
 };
 
 const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
-  const typeName = tc.typeToString(type);
+  const typeName = tc.typeToString(type).replace('<', '_').replace('>', '_');
   const isEnum = type.flags & ts.TypeFlags.EnumLiteral || type.flags & ts.TypeFlags.Enum;
   const isValue = type.flags & ts.TypeFlags.StringLiteral;
   const isUnion = type.flags & ts.TypeFlags.Union;
   const isDynamicType = typeName.startsWith('{') && typeName.endsWith('}') || isValue;
+  const isIntersection = type.flags & ts.TypeFlags.Intersection && typeName.includes('{');
 
   if (isSimpleType(typeName)) {
+    if (typeName === 'Date') {
+      return { type: 'string', format: 'date' };
+    }
     return { type: typeName };
   }
 
@@ -328,9 +332,6 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
   }
 
   else {
-    if (typeName === 'ColorValues') {
-      console.log(type);
-    }
     for (const property of tc.getPropertiesOfType(type)) {
       const propertyType = tc.getTypeOfSymbolAtLocation(property, node) as TypeWithTypes;
       const typeString = tc.typeToString(propertyType);
@@ -360,11 +361,11 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
   definition.required = definition.required?.length ? definition.required : undefined;
   definition.properties = Object.keys(definition.properties || {}).length ? definition.properties : undefined;
 
-  if (save && !isDynamicType) {
+  if (save && !isDynamicType && !isIntersection) {
     spec.components!.schemas![typeName] = definition;
   }
 
-  return isDynamicType || !save
+  return isDynamicType || isIntersection || !save
     ? definition
     : { $ref: `#/components/schemas/${typeName}` };
 };

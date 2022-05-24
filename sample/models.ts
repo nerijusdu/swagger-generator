@@ -33,6 +33,15 @@ export type Cat = Animal & {
     nestedProp: string;
     nestedProp2?: string;
   };
+  joined?: { joinedProp: string } & Animal;
+  // TODO: handle props below
+  // generic?: PaginatedList<Animal>;
+  // pick?: Pick<Color, 'number' | 'animalType'>;
+}
+
+export type PaginatedList<T> = {
+  items: T[];
+  count: number;
 }
 
 export type Dog = Animal & {
