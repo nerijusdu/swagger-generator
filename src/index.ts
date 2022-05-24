@@ -95,17 +95,17 @@ const generateSpecForRoute = (
   const routerId = (tc.getSymbolAtLocation(routerNode)?.declarations?.[0] as VariableDeclaration).symbol.id as number;
 
   const schemas = node.typeArguments?.map((typeArg, index) => {
-    if (typeArg.kind !== ts.SyntaxKind.TypeReference) {
+    if (![ts.SyntaxKind.TypeReference, ts.SyntaxKind.TypeLiteral].includes(typeArg.kind)) {
       return { index, kind: typeArg.kind };
     }
 
     const typeRef = typeArg as ts.TypeReferenceNode;
-    const typeType = tc.getTypeAtLocation(typeRef.typeName);
+    const typeType = tc.getTypeAtLocation(typeRef.typeName || typeRef);
 
     return {
       index,
       kind: typeArg.kind,
-      schema: createSchemaFromType(typeType, typeRef.typeName, tc, PARAMS_TO_SAVE.includes(index))
+      schema: createSchemaFromType(typeType, typeRef.typeName || typeRef, tc, PARAMS_TO_SAVE.includes(index))
     };
   }) || [];
 

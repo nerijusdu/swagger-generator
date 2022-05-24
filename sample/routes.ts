@@ -45,6 +45,10 @@ routes.post<any, any, Cat, Cat>('/cat', (req, res) => {
   res.status(201).json(cat);
 });
 
+routes.get<any, any, { id: number}, any>('/cated', (req, res) => {
+  res.json({id: 1});
+});
+
 routes.use('/doggos', dogRoutes);
 
 

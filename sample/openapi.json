@@ -173,6 +173,33 @@
         }
       }
     },
+    "/cats-api/cated": {
+      "get": {
+        "tags": [
+          "/cats-api"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/advanced/another/yeeted": {
       "get": {
         "tags": [
