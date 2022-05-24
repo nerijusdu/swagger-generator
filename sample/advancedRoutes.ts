@@ -4,11 +4,7 @@ import { Dog } from './models';
 const routes = Router();
 export const anotherRouter = Router();
 
-type DogRouteParams = {
-  dogId: string;
-}
-
-routes.get<any, DogRouteParams, Dog>('/yeet', (req, res) => {
+routes.get<any, null, Dog>('/yeet', (req, res) => {
   res.json({
     name: 'Garfield',
     color: { rgb: '#ff0000' },
@@ -16,7 +12,7 @@ routes.get<any, DogRouteParams, Dog>('/yeet', (req, res) => {
   });
 });
 
-anotherRouter.get<any, DogRouteParams, Dog>('/yeeted', (req, res) => {
+anotherRouter.get<any, null, Dog>('/yeeted', (req, res) => {
   res.json({
     name: 'Garfield',
     color: { rgb: '#ff0000' },

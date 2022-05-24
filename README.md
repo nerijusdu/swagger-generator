@@ -29,7 +29,7 @@ To test the generated file:
 - [X] handle nested routes for duplicated routers e.g. app.use('/api', router); app.use('/api/v2/', router);
 - [X] handle nested routes in routers e.g. router.use('/api', router2)
 - [X] handle enums
-- [ ] handle generics (PaginatedList<T>)
+- [X] handle generics (PaginatedList<T>)
 - [ ] handle inline route types (router.get<{ id: number }>)
 - [X] handle type joins (&)
 - [ ] generate descriptions for responses

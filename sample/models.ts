@@ -34,8 +34,8 @@ export type Cat = Animal & {
     nestedProp2?: string;
   };
   joined?: { joinedProp: string } & Animal;
+  generic?: PaginatedList<Animal>;
   // TODO: handle props below
-  // generic?: PaginatedList<Animal>;
   // pick?: Pick<Color, 'number' | 'animalType'>;
 }
 

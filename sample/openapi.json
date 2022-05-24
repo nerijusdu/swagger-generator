@@ -189,17 +189,7 @@
               }
             }
           }
-        },
-        "parameters": [
-          {
-            "name": "dogId",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ]
+        }
       }
     }
   },
@@ -303,6 +293,24 @@
           "name"
         ]
       },
+      "PaginatedList_Animal_": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Animal"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ]
+      },
       "Cat": {
         "type": "object",
         "properties": {
@@ -359,6 +367,9 @@
               "joinedProp",
               "name"
             ]
+          },
+          "generic": {
+            "$ref": "#/components/schemas/PaginatedList_Animal_"
           }
         },
         "required": [
