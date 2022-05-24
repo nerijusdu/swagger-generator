@@ -3,7 +3,7 @@ import ts from 'typescript';
 import * as fs from 'fs';
 import { Swagger } from './swagger';
 import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, ExpressionWithText, TypeWithValue, RoutePrefix } from './models/helperTypes';
-import { isSimpleType, sanitizeRouteArgument } from './util';
+import { isSimpleType, sanitizeRouteArgument, sanitizeTypeName } from './util';
 
 const ROUTE_PARAMS_INDEX = 1;
 const RESPONSE_INDEX = 2;
@@ -263,7 +263,7 @@ const addPathsToSpec = () => {
 };
 
 const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, save?: boolean): Swagger.Schema => {
-  const typeName = tc.typeToString(type).replace('<', '_').replace('>', '_');
+  const typeName = sanitizeTypeName(tc.typeToString(type));
   const isEnum = type.flags & ts.TypeFlags.EnumLiteral || type.flags & ts.TypeFlags.Enum;
   const isValue = type.flags & ts.TypeFlags.StringLiteral;
   const isUnion = type.flags & ts.TypeFlags.Union;
@@ -339,7 +339,7 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
         definition.required!.push(property.name);
       }
 
-      if (typeString.includes('|')) {
+      if (propertyType.flags & ts.TypeFlags.Union && !(propertyType.flags & ts.TypeFlags.EnumLiteral)) {
         const types = propertyType.types;
         definition.properties![property.name] = {
           oneOf: types.map(x => {

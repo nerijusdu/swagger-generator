@@ -6,3 +6,12 @@ export const sanitizeRouteArgument = (route: ts.Expression | undefined, file: ts
   ?.getText(file)
   ?.replace(/['"]/g, '')
   ?.replace(/:([a-zA-Z]+)/g, '{$1}');
+
+export const sanitizeTypeName = (name: string) => name
+  .replaceAll(' ', '')
+  .replaceAll('|', '_')
+  .replaceAll('"', '')
+  .replaceAll('\\\'', '')
+  .replaceAll(',', '_')
+  .replaceAll('<', '_')
+  .replaceAll('>', '_');

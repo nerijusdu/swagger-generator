@@ -35,8 +35,8 @@ export type Cat = Animal & {
   };
   joined?: { joinedProp: string } & Animal;
   generic?: PaginatedList<Animal>;
-  // TODO: handle props below
-  // pick?: Pick<Color, 'number' | 'animalType'>;
+  pick?: Pick<Color, 'number' | 'animalType'>;
+  omit?: Omit<Color, 'number' | 'animalType' | 'values'>;
 }
 
 export type PaginatedList<T> = {

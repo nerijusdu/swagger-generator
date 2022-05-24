@@ -210,32 +210,6 @@
           2
         ]
       },
-      "ColorValues": {
-        "type": "object",
-        "oneOf": [
-          {
-            "type": "number"
-          },
-          {
-            "type": "string",
-            "enum": [
-              "red"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "green"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "blue"
-            ]
-          }
-        ]
-      },
       "NumberedEnum": {
         "type": "number",
         "enum": [
@@ -256,7 +230,29 @@
             "$ref": "#/components/schemas/AnimalType"
           },
           "values": {
-            "$ref": "#/components/schemas/ColorValues"
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "red"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "green"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "blue"
+                ]
+              }
+            ]
           },
           "number": {
             "$ref": "#/components/schemas/NumberedEnum"
@@ -310,6 +306,28 @@
           "items",
           "count"
         ]
+      },
+      "Pick_Color_number_animalType_": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "$ref": "#/components/schemas/NumberedEnum"
+          },
+          "animalType": {
+            "$ref": "#/components/schemas/AnimalType"
+          }
+        }
+      },
+      "Omit_Color_number_animalType_values_": {
+        "type": "object",
+        "properties": {
+          "rgb": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ColorType"
+          }
+        }
       },
       "Cat": {
         "type": "object",
@@ -370,6 +388,12 @@
           },
           "generic": {
             "$ref": "#/components/schemas/PaginatedList_Animal_"
+          },
+          "pick": {
+            "$ref": "#/components/schemas/Pick_Color_number_animalType_"
+          },
+          "omit": {
+            "$ref": "#/components/schemas/Omit_Color_number_animalType_values_"
           }
         },
         "required": [
