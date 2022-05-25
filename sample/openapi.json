@@ -200,6 +200,43 @@
         }
       }
     },
+    "/yeet/{param}/{another}": {
+      "get": {
+        "tags": [
+          "/yeet/{param}"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "param",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "another",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ]
+      }
+    },
     "/advanced/another/yeeted": {
       "get": {
         "tags": [
@@ -334,7 +371,7 @@
           "count"
         ]
       },
-      "Pick_Color_number_animalType_": {
+      "Pick_Color_9f3910d2dfe31286caa1caaee7e65f58": {
         "type": "object",
         "properties": {
           "number": {
@@ -345,7 +382,7 @@
           }
         }
       },
-      "Omit_Color_number_animalType_values_": {
+      "Omit_Color_57c74048a1293790849899922d09d150": {
         "type": "object",
         "properties": {
           "rgb": {
@@ -417,10 +454,10 @@
             "$ref": "#/components/schemas/PaginatedList_Animal_"
           },
           "pick": {
-            "$ref": "#/components/schemas/Pick_Color_number_animalType_"
+            "$ref": "#/components/schemas/Pick_Color_9f3910d2dfe31286caa1caaee7e65f58"
           },
           "omit": {
-            "$ref": "#/components/schemas/Omit_Color_number_animalType_values_"
+            "$ref": "#/components/schemas/Omit_Color_57c74048a1293790849899922d09d150"
           },
           "bool": {
             "type": "boolean"

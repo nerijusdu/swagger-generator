@@ -1,3 +1,4 @@
+import md5 from 'md5';
 import ts from 'typescript';
 
 export const isSimpleType = (type: string) => ['string', 'number', 'boolean', 'integer', 'Date'].includes(type);
@@ -9,9 +10,6 @@ export const sanitizeRouteArgument = (route: ts.Expression | undefined, file: ts
 
 export const sanitizeTypeName = (name: string) => name
   .replaceAll(' ', '')
-  .replaceAll('|', '_')
-  .replaceAll('"', '')
-  .replaceAll('\\\'', '')
-  .replaceAll(',', '_')
+  .replace(/(Pick|Omit)<(.+),(.+)>/, (_, type, base, args) => `${type}_${base}_${md5(args)}`)
   .replaceAll('<', '_')
   .replaceAll('>', '_');
