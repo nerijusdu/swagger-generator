@@ -3,7 +3,7 @@ import ts from 'typescript';
 import * as fs from 'fs';
 import { Swagger } from './swagger';
 import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, ExpressionWithText, TypeWithValue, RoutePrefix } from './models/helperTypes';
-import { isSimpleType, sanitizeRouteArgument, sanitizeTypeName } from './util';
+import { isSimpleType, sanitizeRoute, sanitizeRouteArgument, sanitizeTypeName } from './util';
 
 const ROUTE_PARAMS_INDEX = 1;
 const RESPONSE_INDEX = 2;
@@ -250,7 +250,7 @@ const addPathsToSpec = () => {
     const routePrefixes = getFullPrefixForRouter(operation.routerId);
 
     for (const fullPrefix of routePrefixes) {
-      const path = `${fullPrefix}${operation.route}`;
+      const path = sanitizeRoute(`${fullPrefix}${operation.route}`);
       spec.paths![path] = {
         ...(spec.paths![path] || {}),
         [operation.method]: {

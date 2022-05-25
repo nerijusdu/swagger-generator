@@ -17,3 +17,7 @@ export const sanitizeTypeName = (name: string) => name
   .replaceAll(',', '_')
   .replaceAll('<', '_')
   .replaceAll('>', '_');
+
+export const sanitizeRoute = (route: string) => route
+  .replace('//', '/')
+  .replace(/(.+)\/$/, '$1');
