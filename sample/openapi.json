@@ -421,6 +421,9 @@
           },
           "omit": {
             "$ref": "#/components/schemas/Omit_Color_number_animalType_values_"
+          },
+          "bool": {
+            "type": "boolean"
           }
         },
         "required": [

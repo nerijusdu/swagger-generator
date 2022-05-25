@@ -32,5 +32,7 @@ To test the generated file:
 - [X] handle generics (PaginatedList<T>)
 - [X] handle inline route types (router.get<{ id: number }>)
 - [X] handle type joins (&)
+- [ ] assign generated names for Pick/Omit
+- [ ] handle deep nested routers (with merged parameters)
 - [ ] generate descriptions for responses
 - [ ] test if type arrangement for IRequestMatcher is always the same

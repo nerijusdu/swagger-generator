@@ -339,7 +339,11 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
         definition.required!.push(property.name);
       }
 
-      if (propertyType.flags & ts.TypeFlags.Union && !(propertyType.flags & ts.TypeFlags.EnumLiteral)) {
+      if (
+        (propertyType.flags & ts.TypeFlags.Union) &&
+        !(propertyType.flags & ts.TypeFlags.EnumLiteral) &&
+        !(propertyType.flags & ts.TypeFlags.Boolean)
+      ) {
         const types = propertyType.types;
         definition.properties![property.name] = {
           oneOf: types.map(x => {

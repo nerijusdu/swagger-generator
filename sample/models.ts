@@ -37,6 +37,7 @@ export type Cat = Animal & {
   generic?: PaginatedList<Animal>;
   pick?: Pick<Color, 'number' | 'animalType'>;
   omit?: Omit<Color, 'number' | 'animalType' | 'values'>;
+  bool?: boolean;
 }
 
 export type PaginatedList<T> = {
