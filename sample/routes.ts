@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import dogRoutes from './dogRoutes';
-import { Cat, ColorRGB } from './models';
+import { Cat, ColorRGB, Dog, PaginatedList } from './models';
 
 const routes = Router();
 
@@ -47,6 +47,10 @@ routes.post<any, any, Cat, Cat>('/cat', (req, res) => {
 
 routes.get<any, any, { id: number}, any>('/cated', (req, res) => {
   res.json({id: 1});
+});
+
+routes.get<any, any, PaginatedList<Dog>>('/paginated/cat', (req, res) => {
+  res.json({ items: [], count: 0});
 });
 
 routes.use('/doggos', dogRoutes);

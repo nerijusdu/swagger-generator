@@ -114,14 +114,16 @@
             "in": "query",
             "schema": {
               "type": "number"
-            }
+            },
+            "required": false
           },
           {
             "name": "color",
             "in": "query",
             "schema": {
               "type": "string"
-            }
+            },
+            "required": false
           }
         ]
       }
@@ -193,6 +195,25 @@
                   "required": [
                     "id"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cats-api/paginated/cat": {
+      "get": {
+        "tags": [
+          "/cats-api"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedList_Dog_"
                 }
               }
             }
@@ -289,6 +310,12 @@
           },
           "type": {
             "$ref": "#/components/schemas/ColorType"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "variant1"
+            ]
           },
           "animalType": {
             "$ref": "#/components/schemas/AnimalType"
@@ -390,6 +417,12 @@
           },
           "type": {
             "$ref": "#/components/schemas/ColorType"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "variant1"
+            ]
           }
         }
       },
@@ -466,6 +499,24 @@
         "required": [
           "name",
           "color"
+        ]
+      },
+      "PaginatedList_Dog_": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dog"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "count"
         ]
       }
     }

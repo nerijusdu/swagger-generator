@@ -5,10 +5,12 @@ import { Swagger } from './swagger';
 import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, ExpressionWithText, TypeWithValue, RoutePrefix } from './models/helperTypes';
 import { isSimpleType, sanitizeRoute, sanitizeRouteArgument, sanitizeTypeName } from './util';
 
-const ROUTE_PARAMS_INDEX = 1;
-const RESPONSE_INDEX = 2;
-const REQUEST_INDEX = 3;
-const QUERY_PARAMS_INDEX = 4;
+const IS_PROMISE_ROUTER = false;
+const indexModifier = IS_PROMISE_ROUTER ? 0 : 1;
+const ROUTE_PARAMS_INDEX = 0 + indexModifier;
+const RESPONSE_INDEX = 1 + indexModifier;
+const REQUEST_INDEX = 2 + indexModifier;
+const QUERY_PARAMS_INDEX = 3 + indexModifier;
 const PARAMS_TO_SAVE = [RESPONSE_INDEX, REQUEST_INDEX];
 
 const routesOperations: RouteOperation[] = [];
@@ -35,7 +37,6 @@ function main(entrypoint: string) {
     });
   });
 
-  console.log(routePrefixMap);
   addPathsToSpec();
 
   // console.log(JSON.stringify(spec, null, 2));
@@ -70,7 +71,7 @@ const generateSpecForRoute = (
   const functionCallNode = node.getChildAt(0, file);
   const symbol = tc.getSymbolAtLocation(functionCallNode);
   if (!symbol) {
-    console.log('no symbol', functionCallNode.getText(file));
+    // console.log('no symbol', functionCallNode.getText(file));
     return;
   }
 
@@ -99,13 +100,12 @@ const generateSpecForRoute = (
       return { index, kind: typeArg.kind };
     }
 
-    const typeRef = typeArg as ts.TypeReferenceNode;
-    const typeType = tc.getTypeAtLocation(typeRef.typeName || typeRef);
+    const typeType = tc.getTypeAtLocation(typeArg);
 
     return {
       index,
       kind: typeArg.kind,
-      schema: createSchemaFromType(typeType, typeRef.typeName || typeRef, tc, PARAMS_TO_SAVE.includes(index))
+      schema: createSchemaFromType(typeType, typeArg, tc, PARAMS_TO_SAVE.includes(index))
     };
   }) || [];
 
@@ -295,7 +295,7 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
     required: [],
   };
 
-  if (isEnum) {
+  if (isEnum && !isValue) {
     let index = 0;
     let isNumeric = false;
     definition.enum = [];
@@ -383,6 +383,7 @@ const createParametersFromSchema = (schema: Swagger.Schema, location: 'path' | '
       name: propertyName,
       in: location,
       schema: properties[propertyName],
+      required: false,
     };
 
     if (schema?.required?.includes(propertyName)) {
@@ -415,4 +416,5 @@ const findStatusesForRoute = (node: ts.Node, tc: ts.TypeChecker, file: ts.Source
     .reduce((acc, child) => [...acc, ...findStatusesForRoute(child, tc, file)], [] as number[]);
 };
 
-main('./sample/app.ts');
+main(process.argv[2] || './sample/app.ts');
+

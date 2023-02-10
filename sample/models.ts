@@ -6,6 +6,7 @@ export type ColorRGB = string;
 export type Color = {
   rgb?: ColorRGB;
   type?: ColorType;
+  variant?: ColorVariant;
   animalType?: AnimalType;
   values?: ColorValues;
   number?: NumberedEnum;
@@ -14,6 +15,9 @@ export type ColorValues = 'red' | 'green' | 'blue' | number;
 export enum ColorType {
   RGB = 'rgb',
   HEX = 'hex',
+}
+export enum ColorVariant {
+  variant1 = 'variant1',
 }
 export enum AnimalType {
   CAT,
