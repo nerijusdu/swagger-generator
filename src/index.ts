@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import ts from 'typescript';
 import * as fs from 'fs';
+import YAML from 'yaml';
 import { Swagger } from './swagger';
 import { ArrayType, TypeWithTypes, RouteOperation, VariableDeclaration, ExpressionWithText, TypeWithValue, RoutePrefix } from './models/helperTypes';
 import { isSimpleType, sanitizeRoute, sanitizeRouteArgument, sanitizeTypeName } from './util';
@@ -17,7 +18,7 @@ const routesOperations: RouteOperation[] = [];
 const routePrefixMap = new Map<number, RoutePrefix[]>();
 const spec: Swagger.Spec = {
   info: { title: 'api', version: '1.0.0' },
-  openapi: '3.0.0',
+  openapi: '3.1.0',
   paths: {},
   components: { schemas: {} },
 };
@@ -40,7 +41,7 @@ function main(entrypoint: string) {
   addPathsToSpec();
 
   // console.log(JSON.stringify(spec, null, 2));
-  fs.writeFileSync('./sample/openapi.json', JSON.stringify(spec, null, 2));
+  fs.writeFileSync('./sample/openapi.yaml', YAML.stringify(spec, null, 2));
   console.log('Done');
 }
 
@@ -299,8 +300,7 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
     let index = 0;
     let isNumeric = false;
     definition.enum = [];
-
-    type.symbol.exports!.forEach((value) => {
+    type.symbol.exports?.forEach((value) => {
       const declaration = value?.valueDeclaration as ts.PropertyAssignment;
       const initializer = declaration?.initializer as ExpressionWithText;
       let enumValue: string | number | undefined = initializer?.text;
