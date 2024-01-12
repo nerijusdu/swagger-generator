@@ -28,6 +28,7 @@ export enum NumberedEnum {
   ONE = 1,
   TWO = 2,
 }
+export type NumberedEnumUnion = NumberedEnum.ONE | NumberedEnum.TWO;
 
 export type Cat = Animal & {
   color: string | number | ColorRGB | Color;
@@ -52,4 +53,5 @@ export type PaginatedList<T> = {
 export type Dog = Animal & {
   height: number;
   color: Color;
+  enumUnion: NumberedEnumUnion;
 }

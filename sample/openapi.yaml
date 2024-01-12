@@ -11,7 +11,7 @@ paths:
         "200":
           description: success
           content:
-            application/json:>
+            application/json:
               schema:
                 $ref: "#/components/schemas/Dog"
       parameters: &a2
@@ -206,10 +206,19 @@ components:
           type: number
         color:
           $ref: "#/components/schemas/Color"
+        enumUnion:
+          oneOf:
+            - type: number
+              enum:
+                - "1"
+            - type: number
+              enum:
+                - "2"
       required:
         - name
         - height
         - color
+        - enumUnion
     Animal:
       type: object
       properties:

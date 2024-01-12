@@ -37,5 +37,5 @@ To test the generated file:
 - [ ] generate descriptions for responses
 - [ ] test if type arrangement for IRequestMatcher is always the same
 
-# errors 
-- [ ] enum parsing generates values instead of enums
+# Errors 
+- [X] enum parsing generates values instead of enums

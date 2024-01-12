@@ -270,6 +270,15 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
   const isUnion = type.flags & ts.TypeFlags.Union;
   const isDynamicType = typeName.startsWith('{') && typeName.endsWith('}') || isValue;
   const isIntersection = type.flags & ts.TypeFlags.Intersection && typeName.includes('{');
+  // console.log('-------', {
+  //   typeName,
+  //   isEnum,
+  //   isValue,
+  //   isUnion,
+  //   isDynamicType,
+  //   isIntersection,
+  //   flags: type.flags
+  // });
 
   if (isSimpleType(typeName)) {
     if (typeName === 'Date') {
@@ -352,13 +361,23 @@ const createSchemaFromType = (type: ts.Type, node: ts.Node, tc: ts.TypeChecker, 
               return { type: propertyTypeName };
             }
 
+            if (x.flags & ts.TypeFlags.EnumLiteral) {
+              const declaration = x.symbol?.valueDeclaration as ts.PropertyAssignment;
+              const initializer = declaration?.initializer as ExpressionWithText;
+              const enumValue: string | number | undefined = initializer?.text;
+              const isNumeric = initializer?.kind === ts.SyntaxKind.NumericLiteral || !enumValue; 
+              return {
+                type: isNumeric ? 'number' : 'string',
+                enum: [enumValue],
+              };
+            }
+
             return createSchemaFromType(x, node, tc, save);
           }),
         };
-        continue;
+      } else {
+        definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
       }
-
-      definition.properties![property.name] = createSchemaFromType(propertyType, node, tc, save);
     }
   }
 
