@@ -36,3 +36,6 @@ To test the generated file:
 - [X] handle deep nested routers (with merged parameters)
 - [ ] generate descriptions for responses
 - [ ] test if type arrangement for IRequestMatcher is always the same
+
+# errors 
+- [ ] enum parsing generates values instead of enums
